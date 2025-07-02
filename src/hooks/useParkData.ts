@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { supabase, ParkSettings, GalleryImage } from '../lib/supabase';
+import { supabase, ParkSettings, GalleryItem, uploadFile, deleteFile } from '../lib/supabase';
 
 export const useParkData = () => {
   const [parkSettings, setParkSettings] = useState<ParkSettings | null>(null);
-  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,19 +51,19 @@ export const useParkData = () => {
     }
   };
 
-  // Load gallery images
-  const loadGalleryImages = async () => {
+  // Load gallery items
+  const loadGalleryItems = async () => {
     try {
       const { data, error } = await supabase
-        .from('gallery_images')
+        .from('gallery_items')
         .select('*')
         .order('display_order', { ascending: true });
 
       if (error) throw error;
 
-      setGalleryImages(data || []);
+      setGalleryItems(data || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load gallery images');
+      setError(err instanceof Error ? err.message : 'Failed to load gallery items');
     }
   };
 
@@ -91,43 +91,87 @@ export const useParkData = () => {
     }
   };
 
-  // Add gallery image
-  const addGalleryImage = async (imageUrl: string) => {
+  // Add gallery item from file
+  const addGalleryFile = async (file: File) => {
     try {
-      const maxOrder = galleryImages.length > 0 
-        ? Math.max(...galleryImages.map(img => img.display_order))
+      const fileType = file.type.startsWith('image/') ? 'image' : 'video';
+      const fileUrl = await uploadFile(file);
+      
+      const maxOrder = galleryItems.length > 0 
+        ? Math.max(...galleryItems.map(item => item.display_order))
         : 0;
 
       const { data, error } = await supabase
-        .from('gallery_images')
+        .from('gallery_items')
         .insert([{
-          image_url: imageUrl,
+          file_url: fileUrl,
+          file_name: file.name,
+          file_type: fileType,
           display_order: maxOrder + 1
         }])
         .select()
         .single();
 
       if (error) throw error;
-      setGalleryImages(prev => [...prev, data]);
+      setGalleryItems(prev => [...prev, data]);
       return data;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add image');
+      setError(err instanceof Error ? err.message : 'Failed to add file');
       throw err;
     }
   };
 
-  // Remove gallery image
-  const removeGalleryImage = async (imageId: string) => {
+  // Add gallery item from URL
+  const addGalleryUrl = async (url: string, type: 'image' | 'video') => {
     try {
-      const { error } = await supabase
-        .from('gallery_images')
-        .delete()
-        .eq('id', imageId);
+      const maxOrder = galleryItems.length > 0 
+        ? Math.max(...galleryItems.map(item => item.display_order))
+        : 0;
+
+      const { data, error } = await supabase
+        .from('gallery_items')
+        .insert([{
+          file_url: url,
+          file_name: `External ${type}`,
+          file_type: type,
+          display_order: maxOrder + 1
+        }])
+        .select()
+        .single();
 
       if (error) throw error;
-      setGalleryImages(prev => prev.filter(img => img.id !== imageId));
+      setGalleryItems(prev => [...prev, data]);
+      return data;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to remove image');
+      setError(err instanceof Error ? err.message : 'Failed to add URL');
+      throw err;
+    }
+  };
+
+  // Remove gallery item
+  const removeGalleryItem = async (itemId: string) => {
+    try {
+      const item = galleryItems.find(item => item.id === itemId);
+      if (!item) return;
+
+      // Delete from storage if it's an uploaded file
+      if (item.file_url.includes(supabase.supabaseUrl)) {
+        try {
+          await deleteFile(item.file_url);
+        } catch (storageError) {
+          console.warn('Failed to delete file from storage:', storageError);
+        }
+      }
+
+      const { error } = await supabase
+        .from('gallery_items')
+        .delete()
+        .eq('id', itemId);
+
+      if (error) throw error;
+      setGalleryItems(prev => prev.filter(item => item.id !== itemId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to remove item');
       throw err;
     }
   };
@@ -135,7 +179,7 @@ export const useParkData = () => {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([loadParkSettings(), loadGalleryImages()]);
+      await Promise.all([loadParkSettings(), loadGalleryItems()]);
       setLoading(false);
     };
 
@@ -144,12 +188,13 @@ export const useParkData = () => {
 
   return {
     parkSettings,
-    galleryImages,
+    galleryItems,
     loading,
     error,
     updateParkSettings,
-    addGalleryImage,
-    removeGalleryImage,
-    refetch: () => Promise.all([loadParkSettings(), loadGalleryImages()])
+    addGalleryFile,
+    addGalleryUrl,
+    removeGalleryItem,
+    refetch: () => Promise.all([loadParkSettings(), loadGalleryItems()])
   };
 };

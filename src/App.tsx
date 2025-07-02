@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MapPin, Clock, Phone, Mail, Star, Waves, Users, Coffee, Shirt, Lock, Map, LogIn, LogOut, Edit, Save, X, Plus, Trash2, Upload } from 'lucide-react';
 import { Navbar } from './components/Navbar';
+import { GallerySection } from './components/GallerySection';
 import { useParkData } from './hooks/useParkData';
 
 function App() {
@@ -8,19 +9,19 @@ function App() {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminCredentials, setAdminCredentials] = useState({ username: '', password: '' });
-  const [isEditing, setIsEditing] = useState({ timings: false, prices: false, gallery: false });
+  const [isEditing, setIsEditing] = useState({ timings: false, prices: false });
   const [adminClickCount, setAdminClickCount] = useState(0);
-  const [newImageUrl, setNewImageUrl] = useState('');
   
   // Use the custom hook for database operations
   const {
     parkSettings,
-    galleryImages,
+    galleryItems,
     loading,
     error,
     updateParkSettings,
-    addGalleryImage,
-    removeGalleryImage
+    addGalleryFile,
+    addGalleryUrl,
+    removeGalleryItem
   } = useParkData();
 
   // Temporary data for editing
@@ -79,7 +80,7 @@ function App() {
 
   const handleAdminLogout = () => {
     setIsAdminLoggedIn(false);
-    setIsEditing({ timings: false, prices: false, gallery: false });
+    setIsEditing({ timings: false, prices: false });
     if (parkSettings) {
       setTempData({
         timings: parkSettings.timings,
@@ -128,41 +129,6 @@ function App() {
       setIsEditing(prev => ({ ...prev, [section]: false }));
     } catch (error) {
       alert('Failed to save changes. Please try again.');
-    }
-  };
-
-  const handleAddNewImage = async () => {
-    if (newImageUrl.trim()) {
-      try {
-        await addGalleryImage(newImageUrl.trim());
-        setNewImageUrl('');
-      } catch (error) {
-        alert('Failed to add image. Please try again.');
-      }
-    }
-  };
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const result = e.target?.result as string;
-        try {
-          await addGalleryImage(result);
-        } catch (error) {
-          alert('Failed to upload image. Please try again.');
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleRemoveImage = async (imageId: string) => {
-    try {
-      await removeGalleryImage(imageId);
-    } catch (error) {
-      alert('Failed to remove image. Please try again.');
     }
   };
 
@@ -344,127 +310,15 @@ function App() {
         </div>
       </section>
 
-      {/* Gallery Section */}
-      <section id="gallery" className="py-20">
-        <div className="container mx-auto px-4">
-          <div className="flex justify-between items-center mb-16">
-            <div className="text-center flex-1">
-              <h2 className="text-4xl font-bold text-gray-800 mb-4">Experience the Fun</h2>
-              <p className="text-xl text-gray-600">Take a glimpse of what awaits you at Sunami Water Park</p>
-            </div>
-            {isAdminLoggedIn && (
-              <div className="ml-8">
-                {!isEditing.gallery ? (
-                  <button
-                    onClick={() => startEditing('gallery')}
-                    className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <Edit className="w-4 h-4" />
-                    <span>Edit Gallery</span>
-                  </button>
-                ) : (
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => saveChanges('gallery')}
-                      className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-                    >
-                      <Save className="w-4 h-4" />
-                      <span>Save</span>
-                    </button>
-                    <button
-                      onClick={() => cancelEditing('gallery')}
-                      className="flex items-center space-x-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                      <span>Cancel</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Add New Image (Admin Only) */}
-          {isAdminLoggedIn && isEditing.gallery && (
-            <div className="mb-8 bg-blue-50 p-6 rounded-xl">
-              <h3 className="text-lg font-semibold mb-4">Add New Images</h3>
-              
-              {/* File Upload */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Upload from Computer</label>
-                <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <Upload className="w-8 h-8 mb-4 text-gray-500" />
-                      <p className="mb-2 text-sm text-gray-500">
-                        <span className="font-semibold">Click to upload</span> or drag and drop
-                      </p>
-                      <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
-                    </div>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={handleFileUpload}
-                    />
-                  </label>
-                </div>
-              </div>
-
-              {/* URL Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Or Add by URL</label>
-                <div className="flex gap-4">
-                  <input
-                    type="url"
-                    value={newImageUrl}
-                    onChange={(e) => setNewImageUrl(e.target.value)}
-                    placeholder="Enter image URL"
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                  />
-                  <button
-                    onClick={handleAddNewImage}
-                    className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Add</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {galleryImages.map((image) => (
-              <div 
-                key={image.id}
-                className="relative group overflow-hidden rounded-xl shadow-lg cursor-pointer"
-              >
-                <img 
-                  src={image.image_url} 
-                  alt={`Water Park Gallery`}
-                  className="w-full h-64 object-cover transition-transform group-hover:scale-110"
-                  onClick={() => !isEditing.gallery && setSelectedImage(image.image_url)}
-                />
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
-                  {isEditing.gallery ? (
-                    <button
-                      onClick={() => handleRemoveImage(image.id)}
-                      className="bg-red-600 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  ) : (
-                    <span className="text-white text-lg font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                      View Image
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Enhanced Gallery Section */}
+      <GallerySection
+        galleryItems={galleryItems}
+        isAdminLoggedIn={isAdminLoggedIn}
+        onAddFile={addGalleryFile}
+        onAddUrl={addGalleryUrl}
+        onRemoveItem={removeGalleryItem}
+        onImageClick={setSelectedImage}
+      />
 
       {/* Pricing Section */}
       <section id="pricing" className="py-20 bg-gradient-to-br from-blue-50 to-cyan-50">

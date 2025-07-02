@@ -25,9 +25,46 @@ export interface ParkSettings {
   updated_at: string;
 }
 
-export interface GalleryImage {
+export interface GalleryItem {
   id: string;
-  image_url: string;
+  file_url: string;
+  file_name: string;
+  file_type: 'image' | 'video';
   display_order: number;
   created_at: string;
 }
+
+// Storage utilities
+export const uploadFile = async (file: File, bucket: string = 'gallery'): Promise<string> => {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+  const filePath = `${fileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(bucket)
+    .upload(filePath, file);
+
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  const { data } = supabase.storage
+    .from(bucket)
+    .getPublicUrl(filePath);
+
+  return data.publicUrl;
+};
+
+export const deleteFile = async (url: string, bucket: string = 'gallery'): Promise<void> => {
+  // Extract file path from URL
+  const urlParts = url.split('/');
+  const fileName = urlParts[urlParts.length - 1];
+  
+  const { error } = await supabase.storage
+    .from(bucket)
+    .remove([fileName]);
+
+  if (error) {
+    throw error;
+  }
+};

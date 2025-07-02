@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { MapPin, Clock, Phone, Mail, Star, Waves, Users, Coffee, Shirt, Lock, Map, LogIn, LogOut, Edit, Save, X, Plus, Trash2, Upload } from 'lucide-react';
+import { Navbar } from './components/Navbar';
+import { useParkData } from './hooks/useParkData';
 
 function App() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -8,9 +10,21 @@ function App() {
   const [adminCredentials, setAdminCredentials] = useState({ username: '', password: '' });
   const [isEditing, setIsEditing] = useState({ timings: false, prices: false, gallery: false });
   const [adminClickCount, setAdminClickCount] = useState(0);
+  const [newImageUrl, setNewImageUrl] = useState('');
   
-  // Admin manageable data
-  const [parkData, setParkData] = useState({
+  // Use the custom hook for database operations
+  const {
+    parkSettings,
+    galleryImages,
+    loading,
+    error,
+    updateParkSettings,
+    addGalleryImage,
+    removeGalleryImage
+  } = useParkData();
+
+  // Temporary data for editing
+  const [tempData, setTempData] = useState({
     timings: {
       openTime: '10:00 AM',
       closeTime: '5:00 PM',
@@ -19,35 +33,33 @@ function App() {
     prices: {
       weekday: 400,
       weekend: 500
-    },
-    gallery: [
-      "https://images.pexels.com/photos/1174732/pexels-photo-1174732.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "https://images.pexels.com/photos/1630344/pexels-photo-1630344.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "https://images.pexels.com/photos/416978/pexels-photo-416978.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "https://images.pexels.com/photos/1174732/pexels-photo-1174732.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "https://images.pexels.com/photos/1630344/pexels-photo-1630344.jpeg?auto=compress&cs=tinysrgb&w=800",
-      "https://images.pexels.com/photos/416978/pexels-photo-416978.jpeg?auto=compress&cs=tinysrgb&w=800"
-    ]
+    }
   });
 
-  const [tempData, setTempData] = useState(parkData);
-  const [newImageUrl, setNewImageUrl] = useState('');
+  // Update temp data when park settings load
+  React.useEffect(() => {
+    if (parkSettings) {
+      setTempData({
+        timings: parkSettings.timings,
+        prices: parkSettings.prices
+      });
+    }
+  }, [parkSettings]);
 
-  // Simple hash function for password (in production, use proper bcrypt or similar)
+  // Simple hash function for password
   const hashPassword = (password: string): string => {
     let hash = 0;
     for (let i = 0; i < password.length; i++) {
       const char = password.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
+      hash = hash & hash;
     }
     return Math.abs(hash).toString(16);
   };
 
-  // Stored hashed credentials (hash of "admin123" is "7c6a180b")
   const ADMIN_CREDENTIALS = {
     username: 'admin',
-    passwordHash: '7b4b64a1' // This is the hash of "admin123"
+    passwordHash: '7b4b64a1' // Hash of "admin123"
   };
 
   const handleAdminLogin = (e: React.FormEvent) => {
@@ -68,11 +80,15 @@ function App() {
   const handleAdminLogout = () => {
     setIsAdminLoggedIn(false);
     setIsEditing({ timings: false, prices: false, gallery: false });
-    setTempData(parkData);
+    if (parkSettings) {
+      setTempData({
+        timings: parkSettings.timings,
+        prices: parkSettings.prices
+      });
+    }
     setAdminClickCount(0);
   };
 
-  // Hidden admin access - click on logo 5 times
   const handleLogoClick = () => {
     setAdminClickCount(prev => {
       const newCount = prev + 1;
@@ -86,49 +102,68 @@ function App() {
 
   const startEditing = (section: string) => {
     setIsEditing(prev => ({ ...prev, [section]: true }));
-    setTempData(parkData);
+    if (parkSettings) {
+      setTempData({
+        timings: parkSettings.timings,
+        prices: parkSettings.prices
+      });
+    }
   };
 
   const cancelEditing = (section: string) => {
     setIsEditing(prev => ({ ...prev, [section]: false }));
-    setTempData(parkData);
-  };
-
-  const saveChanges = (section: string) => {
-    setParkData(tempData);
-    setIsEditing(prev => ({ ...prev, [section]: false }));
-  };
-
-  const addNewImage = () => {
-    if (newImageUrl.trim()) {
-      setTempData(prev => ({
-        ...prev,
-        gallery: [...prev.gallery, newImageUrl.trim()]
-      }));
-      setNewImageUrl('');
+    if (parkSettings) {
+      setTempData({
+        timings: parkSettings.timings,
+        prices: parkSettings.prices
+      });
     }
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const saveChanges = async (section: string) => {
+    try {
+      if (section === 'timings' || section === 'prices') {
+        await updateParkSettings(tempData);
+      }
+      setIsEditing(prev => ({ ...prev, [section]: false }));
+    } catch (error) {
+      alert('Failed to save changes. Please try again.');
+    }
+  };
+
+  const handleAddNewImage = async () => {
+    if (newImageUrl.trim()) {
+      try {
+        await addGalleryImage(newImageUrl.trim());
+        setNewImageUrl('');
+      } catch (error) {
+        alert('Failed to add image. Please try again.');
+      }
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.type.startsWith('image/')) {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         const result = e.target?.result as string;
-        setTempData(prev => ({
-          ...prev,
-          gallery: [...prev.gallery, result]
-        }));
+        try {
+          await addGalleryImage(result);
+        } catch (error) {
+          alert('Failed to upload image. Please try again.');
+        }
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const removeImage = (index: number) => {
-    setTempData(prev => ({
-      ...prev,
-      gallery: prev.gallery.filter((_, i) => i !== index)
-    }));
+  const handleRemoveImage = async (imageId: string) => {
+    try {
+      await removeGalleryImage(imageId);
+    } catch (error) {
+      alert('Failed to remove image. Please try again.');
+    }
   };
 
   const facilities = [
@@ -167,42 +202,40 @@ function App() {
     }
   ];
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-xl text-gray-600">Loading Sunami Water Park...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-red-50 flex items-center justify-center">
+        <div className="text-center bg-white p-8 rounded-xl shadow-lg max-w-md">
+          <div className="text-red-600 mb-4">
+            <X className="w-16 h-16 mx-auto" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Connection Error</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <p className="text-sm text-gray-500">Please make sure Supabase is connected and try again.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white">
-      {/* Navigation */}
-      <nav className="bg-gradient-to-r from-blue-600/70 to-cyan-500/70 backdrop-blur-md text-white p-4 sticky top-0 z-50 shadow-lg">
-        <div className="container mx-auto flex justify-between items-center">
-          <div className="flex items-center space-x-3">
-            <button onClick={handleLogoClick} className="flex items-center space-x-3 focus:outline-none">
-              {/* Logo Image */}
-              <h1 className="text-2xl font-bold">Sunami Water Park</h1>
-            </button>
-          </div>
-          
-          <div className="flex items-center space-x-6">
-            <div className="hidden md:flex space-x-6">
-              <a href="#home" className="hover:text-cyan-200 transition-colors">Home</a>
-              <a href="#gallery" className="hover:text-cyan-200 transition-colors">Gallery</a>
-              <a href="#pricing" className="hover:text-cyan-200 transition-colors">Pricing</a>
-              <a href="#facilities" className="hover:text-cyan-200 transition-colors">Facilities</a>
-              <a href="#founders" className="hover:text-cyan-200 transition-colors">Founders</a>
-              <a href="#location" className="hover:text-cyan-200 transition-colors">Location</a>
-            </div>
-
-            {/* Admin Logout */}
-            {isAdminLoggedIn && (
-              <button
-                onClick={handleAdminLogout}
-                className="flex items-center space-x-2 bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Logout</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </nav>
-
+      {/* Enhanced Navbar */}
+      <Navbar 
+        isAdminLoggedIn={isAdminLoggedIn}
+        onAdminLogout={handleAdminLogout}
+        onLogoClick={handleLogoClick}
+      />
 
       {/* Admin Login Modal */}
       {showAdminLogin && (
@@ -390,7 +423,7 @@ function App() {
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                   />
                   <button
-                    onClick={addNewImage}
+                    onClick={handleAddNewImage}
                     className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
                   >
                     <Plus className="w-4 h-4" />
@@ -402,21 +435,21 @@ function App() {
           )}
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {(isEditing.gallery ? tempData.gallery : parkData.gallery).map((image, index) => (
+            {galleryImages.map((image) => (
               <div 
-                key={index}
+                key={image.id}
                 className="relative group overflow-hidden rounded-xl shadow-lg cursor-pointer"
               >
                 <img 
-                  src={image} 
-                  alt={`Water Park ${index + 1}`}
+                  src={image.image_url} 
+                  alt={`Water Park Gallery`}
                   className="w-full h-64 object-cover transition-transform group-hover:scale-110"
-                  onClick={() => !isEditing.gallery && setSelectedImage(image)}
+                  onClick={() => !isEditing.gallery && setSelectedImage(image.image_url)}
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
                   {isEditing.gallery ? (
                     <button
-                      onClick={() => removeImage(index)}
+                      onClick={() => handleRemoveImage(image.id)}
                       className="bg-red-600 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
                     >
                       <Trash2 className="w-5 h-5" />
@@ -522,8 +555,8 @@ function App() {
               ) : (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                    <span className="font-semibold">{parkData.timings.days}</span>
-                    <span className="text-cyan-600 font-bold">{parkData.timings.openTime} - {parkData.timings.closeTime}</span>
+                    <span className="font-semibold">{parkSettings?.timings.days}</span>
+                    <span className="text-cyan-600 font-bold">{parkSettings?.timings.openTime} - {parkSettings?.timings.closeTime}</span>
                   </div>
                   <p className="text-gray-600 text-center">Open all days of the week!</p>
                 </div>
@@ -597,11 +630,11 @@ function App() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
                     <span className="font-semibold">Monday - Friday</span>
-                    <span className="text-green-600 font-bold text-xl">₹{parkData.prices.weekday}</span>
+                    <span className="text-green-600 font-bold text-xl">₹{parkSettings?.prices.weekday}</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
                     <span className="font-semibold">Saturday - Sunday</span>
-                    <span className="text-green-600 font-bold text-xl">₹{parkData.prices.weekend}</span>
+                    <span className="text-green-600 font-bold text-xl">₹{parkSettings?.prices.weekend}</span>
                   </div>
                   <p className="text-gray-600 text-center text-sm">Includes access to all water attractions</p>
                 </div>
@@ -640,25 +673,25 @@ function App() {
       <section id="founders" className="py-20 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-        <h2 className="text-4xl font-bold text-gray-800 mb-4">Meet Our Founders</h2>
-        <p className="text-xl text-gray-600">The visionaries behind Sunami Water Park</p>
+            <h2 className="text-4xl font-bold text-gray-800 mb-4">Meet Our Founders</h2>
+            <p className="text-xl text-gray-600">The visionaries behind Sunami Water Park</p>
           </div>
           
           <div className="grid md:grid-cols-2 gap-12 max-w-4xl mx-auto">
-        {founders.map((founder, index) => (
-          <div key={index} className="bg-white p-8 rounded-xl shadow-lg">
-            <div className="flex flex-col items-center text-center">
-          <img 
-            src={founder.image} 
-            alt={founder.name}
-            className="w-32 h-32 rounded-full object-cover object-top mb-6"
-          />
-          <h3 className="text-2xl font-bold text-gray-800 mb-2">{founder.name}</h3>
-          <p className="text-cyan-600 font-semibold mb-4">{founder.role}</p>
-          <p className="text-gray-600 leading-relaxed">{founder.description}</p>
-            </div>
-          </div>
-        ))}
+            {founders.map((founder, index) => (
+              <div key={index} className="bg-white p-8 rounded-xl shadow-lg">
+                <div className="flex flex-col items-center text-center">
+                  <img 
+                    src={founder.image} 
+                    alt={founder.name}
+                    className="w-32 h-32 rounded-full object-cover object-top mb-6"
+                  />
+                  <h3 className="text-2xl font-bold text-gray-800 mb-2">{founder.name}</h3>
+                  <p className="text-cyan-600 font-semibold mb-4">{founder.role}</p>
+                  <p className="text-gray-600 leading-relaxed">{founder.description}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -672,7 +705,6 @@ function App() {
           </div>
 
           <div className="grid lg:grid-cols-2 gap-12 max-w-6xl mx-auto">
-            {/* Embedded Google Map */}
             <div className="rounded-xl overflow-hidden shadow-lg">
               <iframe
                 src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3590.9522417065414!2d83.54667487655884!3d25.838118977303957!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3991f55d20cd8ef7%3A0xa4bda0ffeeb20df6!2sSunami%20Waterpark!5e0!3m2!1sen!2sin!4v1751472742101!5m2!1sen!2sin"
@@ -686,7 +718,6 @@ function App() {
               ></iframe>
             </div>
 
-            {/* Address Details */}
             <div className="space-y-8">
               <div className="bg-white p-8 rounded-xl shadow-lg">
                 <div className="flex items-start space-x-4">
@@ -726,7 +757,6 @@ function App() {
         </div>
       </section>
 
-
       {/* Footer */}
       <footer className="bg-gray-800 text-white py-12">
         <div className="container mx-auto px-4">
@@ -764,8 +794,8 @@ function App() {
             <div>
               <h4 className="text-lg font-semibold mb-4">Hours</h4>
               <p className="text-gray-400">
-                {parkData.timings.days}<br />
-                {parkData.timings.openTime} - {parkData.timings.closeTime}
+                {parkSettings?.timings.days}<br />
+                {parkSettings?.timings.openTime} - {parkSettings?.timings.closeTime}
               </p>
             </div>
           </div>

@@ -20,12 +20,12 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
   onImageClick
 }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'images' | 'videos'>('images');
   const [newUrl, setNewUrl] = useState('');
+  const [newUrlType, setNewUrlType] = useState<'image' | 'video'>('image');
   const [uploading, setUploading] = useState(false);
 
-  const images = galleryItems.filter(item => item.file_type === 'image');
-  const videos = galleryItems.filter(item => item.file_type === 'video');
+  const images = galleryItems.filter(item => item.file_type === 'image').slice(0, 3);
+  const videos = galleryItems.filter(item => item.file_type === 'video').slice(0, 3);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -50,24 +50,24 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
     if (!newUrl.trim()) return;
 
     try {
-      await onAddUrl(newUrl.trim(), activeTab === 'images' ? 'image' : 'video');
+      await onAddUrl(newUrl.trim(), newUrlType);
       setNewUrl('');
     } catch (error) {
       alert('Failed to add URL. Please try again.');
     }
   };
 
-  const renderMediaItem = (item: GalleryItem) => {
+  const renderMediaItem = (item: GalleryItem, index: number) => {
     if (item.file_type === 'image') {
       return (
         <div 
           key={item.id}
-          className="relative group overflow-hidden rounded-xl shadow-lg cursor-pointer"
+          className="relative group overflow-hidden rounded-xl shadow-lg cursor-pointer aspect-video"
         >
           <img 
             src={item.file_url} 
             alt={item.file_name}
-            className="w-full h-64 object-cover transition-transform group-hover:scale-110"
+            className="w-full h-full object-cover transition-transform group-hover:scale-110"
             onClick={() => !isEditing && onImageClick(item.file_url)}
           />
           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
@@ -79,8 +79,8 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
                 <Trash2 className="w-5 h-5" />
               </button>
             ) : (
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                <Image className="w-8 h-8 text-white mb-2" />
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity text-center">
+                <Image className="w-8 h-8 text-white mb-2 mx-auto" />
                 <span className="text-white text-sm font-semibold">View Image</span>
               </div>
             )}
@@ -91,11 +91,11 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
       return (
         <div 
           key={item.id}
-          className="relative group overflow-hidden rounded-xl shadow-lg"
+          className="relative group overflow-hidden rounded-xl shadow-lg aspect-video"
         >
           <video 
             src={item.file_url}
-            className="w-full h-64 object-cover"
+            className="w-full h-full object-cover"
             controls={!isEditing}
             preload="metadata"
           />
@@ -108,8 +108,8 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
                 <Trash2 className="w-5 h-5" />
               </button>
             ) : (
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                <Play className="w-8 h-8 text-white mb-2" />
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity text-center">
+                <Play className="w-8 h-8 text-white mb-2 mx-auto" />
                 <span className="text-white text-sm font-semibold">Play Video</span>
               </div>
             )}
@@ -118,6 +118,18 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
       );
     }
   };
+
+  const renderEmptySlot = (type: 'image' | 'video', index: number) => (
+    <div 
+      key={`empty-${type}-${index}`}
+      className="aspect-video bg-gray-100 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center"
+    >
+      <div className="text-center text-gray-400">
+        {type === 'image' ? <Image className="w-12 h-12 mx-auto mb-2" /> : <Video className="w-12 h-12 mx-auto mb-2" />}
+        <p className="text-sm">No {type} yet</p>
+      </div>
+    </div>
+  );
 
   return (
     <section id="gallery" className="py-20">
@@ -159,40 +171,10 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
           )}
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex justify-center mb-8">
-          <div className="bg-gray-100 p-1 rounded-xl">
-            <button
-              onClick={() => setActiveTab('images')}
-              className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-all ${
-                activeTab === 'images'
-                  ? 'bg-white text-blue-600 shadow-md'
-                  : 'text-gray-600 hover:text-blue-600'
-              }`}
-            >
-              <Image className="w-5 h-5" />
-              <span>Images ({images.length})</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('videos')}
-              className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-all ${
-                activeTab === 'videos'
-                  ? 'bg-white text-blue-600 shadow-md'
-                  : 'text-gray-600 hover:text-blue-600'
-              }`}
-            >
-              <Video className="w-5 h-5" />
-              <span>Videos ({videos.length})</span>
-            </button>
-          </div>
-        </div>
-
         {/* Add New Media (Admin Only) */}
         {isAdminLoggedIn && isEditing && (
           <div className="mb-8 bg-blue-50 p-6 rounded-xl">
-            <h3 className="text-lg font-semibold mb-4">
-              Add New {activeTab === 'images' ? 'Images' : 'Videos'}
-            </h3>
+            <h3 className="text-lg font-semibold mb-4">Add New Media</h3>
             
             {/* File Upload */}
             <div className="mb-4">
@@ -209,13 +191,13 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
                       </span> or drag and drop
                     </p>
                     <p className="text-xs text-gray-500">
-                      {activeTab === 'images' ? 'PNG, JPG, GIF up to 10MB' : 'MP4, WebM, MOV up to 50MB'}
+                      Images: PNG, JPG, GIF up to 10MB | Videos: MP4, WebM, MOV up to 50MB
                     </p>
                   </div>
                   <input
                     type="file"
                     className="hidden"
-                    accept={activeTab === 'images' ? 'image/*' : 'video/*'}
+                    accept="image/*,video/*"
                     onChange={handleFileUpload}
                     disabled={uploading}
                   />
@@ -229,11 +211,19 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
                 Or Add by URL
               </label>
               <div className="flex gap-4">
+                <select
+                  value={newUrlType}
+                  onChange={(e) => setNewUrlType(e.target.value as 'image' | 'video')}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                >
+                  <option value="image">Image</option>
+                  <option value="video">Video</option>
+                </select>
                 <input
                   type="url"
                   value={newUrl}
                   onChange={(e) => setNewUrl(e.target.value)}
-                  placeholder={`Enter ${activeTab === 'images' ? 'image' : 'video'} URL`}
+                  placeholder="Enter media URL"
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                 />
                 <button
@@ -248,32 +238,37 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
           </div>
         )}
         
-        {/* Media Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {activeTab === 'images' 
-            ? images.map(renderMediaItem)
-            : videos.map(renderMediaItem)
-          }
+        {/* Images Row */}
+        <div className="mb-12">
+          <div className="flex items-center mb-6">
+            <Image className="w-6 h-6 text-blue-600 mr-3" />
+            <h3 className="text-2xl font-bold text-gray-800">Images</h3>
+            <span className="ml-3 bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">
+              {images.length}/3
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {Array.from({ length: 3 }, (_, index) => 
+              images[index] ? renderMediaItem(images[index], index) : renderEmptySlot('image', index)
+            )}
+          </div>
         </div>
 
-        {/* Empty State */}
-        {((activeTab === 'images' && images.length === 0) || 
-          (activeTab === 'videos' && videos.length === 0)) && (
-          <div className="text-center py-12">
-            <div className="text-gray-400 mb-4">
-              {activeTab === 'images' ? <Image className="w-16 h-16 mx-auto" /> : <Video className="w-16 h-16 mx-auto" />}
-            </div>
-            <h3 className="text-xl font-semibold text-gray-600 mb-2">
-              No {activeTab} yet
-            </h3>
-            <p className="text-gray-500">
-              {isAdminLoggedIn 
-                ? `Start by adding some ${activeTab} to showcase your water park!`
-                : `${activeTab} will appear here soon.`
-              }
-            </p>
+        {/* Videos Row */}
+        <div>
+          <div className="flex items-center mb-6">
+            <Video className="w-6 h-6 text-purple-600 mr-3" />
+            <h3 className="text-2xl font-bold text-gray-800">Videos</h3>
+            <span className="ml-3 bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-semibold">
+              {videos.length}/3
+            </span>
           </div>
-        )}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {Array.from({ length: 3 }, (_, index) => 
+              videos[index] ? renderMediaItem(videos[index], index) : renderEmptySlot('video', index)
+            )}
+          </div>
+        </div>
       </div>
     </section>
   );

@@ -18,6 +18,7 @@ function App() {
     galleryItems,
     loading,
     error,
+    storageReady,
     updateParkSettings,
     addGalleryFile,
     addGalleryUrl,
@@ -314,6 +315,7 @@ function App() {
       <GallerySection
         galleryItems={galleryItems}
         isAdminLoggedIn={isAdminLoggedIn}
+        storageReady={storageReady}
         onAddFile={addGalleryFile}
         onAddUrl={addGalleryUrl}
         onRemoveItem={removeGalleryItem}

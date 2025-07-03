@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Edit, Save, X, Plus, Trash2, Upload, Image, Video, Play } from 'lucide-react';
+import { Edit, Save, X, Plus, Trash2, Upload, Image, Video, Play, AlertCircle } from 'lucide-react';
 import { GalleryItem } from '../lib/supabase';
 
 interface GallerySectionProps {
   galleryItems: GalleryItem[];
   isAdminLoggedIn: boolean;
+  storageReady?: boolean;
   onAddFile: (file: File) => Promise<void>;
   onAddUrl: (url: string, type: 'image' | 'video') => Promise<void>;
   onRemoveItem: (itemId: string) => Promise<void>;
@@ -14,6 +15,7 @@ interface GallerySectionProps {
 export const GallerySection: React.FC<GallerySectionProps> = ({
   galleryItems,
   isAdminLoggedIn,
+  storageReady = true,
   onAddFile,
   onAddUrl,
   onRemoveItem,
@@ -23,6 +25,7 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
   const [newUrl, setNewUrl] = useState('');
   const [newUrlType, setNewUrlType] = useState<'image' | 'video'>('image');
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
 
   const images = galleryItems.filter(item => item.file_type === 'image').slice(0, 3);
   const videos = galleryItems.filter(item => item.file_type === 'video').slice(0, 3);
@@ -31,29 +34,74 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Reset the input
+    event.target.value = '';
+
+    if (!storageReady) {
+      alert('Storage is not ready. Please check your Supabase configuration.');
+      return;
+    }
+
     if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
       alert('Please select an image or video file');
       return;
     }
 
+    // Check file size
+    const isImage = file.type.startsWith('image/');
+    const maxSize = isImage ? 10 * 1024 * 1024 : 50 * 1024 * 1024; // 10MB for images, 50MB for videos
+    if (file.size > maxSize) {
+      alert(`File size too large. Maximum ${isImage ? '10MB' : '50MB'} allowed.`);
+      return;
+    }
+
     setUploading(true);
+    setUploadProgress('Preparing upload...');
+    
     try {
+      setUploadProgress('Uploading to storage...');
       await onAddFile(file);
+      setUploadProgress('Upload complete!');
+      
+      // Clear progress after a short delay
+      setTimeout(() => {
+        setUploadProgress('');
+      }, 2000);
     } catch (error) {
-      alert('Failed to upload file. Please try again.');
+      console.error('Upload error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload file';
+      alert(`Upload failed: ${errorMessage}`);
+      setUploadProgress('');
     } finally {
       setUploading(false);
     }
   };
 
   const handleAddUrl = async () => {
-    if (!newUrl.trim()) return;
+    if (!newUrl.trim()) {
+      alert('Please enter a URL');
+      return;
+    }
 
     try {
       await onAddUrl(newUrl.trim(), newUrlType);
       setNewUrl('');
     } catch (error) {
-      alert('Failed to add URL. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add URL';
+      alert(`Failed to add URL: ${errorMessage}`);
+    }
+  };
+
+  const handleRemoveItem = async (itemId: string) => {
+    if (!confirm('Are you sure you want to delete this item?')) {
+      return;
+    }
+
+    try {
+      await onRemoveItem(itemId);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to remove item';
+      alert(`Failed to remove item: ${errorMessage}`);
     }
   };
 
@@ -62,18 +110,22 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
       return (
         <div 
           key={item.id}
-          className="relative group overflow-hidden rounded-xl shadow-lg cursor-pointer aspect-video"
+          className="relative group overflow-hidden rounded-xl shadow-lg cursor-pointer aspect-video bg-gray-100"
         >
           <img 
             src={item.file_url} 
             alt={item.file_name}
             className="w-full h-full object-cover transition-transform group-hover:scale-110"
             onClick={() => !isEditing && onImageClick(item.file_url)}
+            onError={(e) => {
+              console.error('Image load error:', item.file_url);
+              e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIxIDEyVjdBMiAyIDAgMCAwIDE5IDVINUEyIDIgMCAwIDAgMyA3VjE3QTIgMiAwIDAgMCA1IDE5SDE5QTIgMiAwIDAgMCAyMSAxN1YxMloiIHN0cm9rZT0iIzk5OTk5OSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPHBhdGggZD0iTTggMTBMMTMgMTVMMTYgMTJMMjEgMTciIHN0cm9rZT0iIzk5OTk5OSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+';
+            }}
           />
           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
             {isEditing ? (
               <button
-                onClick={() => onRemoveItem(item.id)}
+                onClick={() => handleRemoveItem(item.id)}
                 className="bg-red-600 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
               >
                 <Trash2 className="w-5 h-5" />
@@ -91,18 +143,21 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
       return (
         <div 
           key={item.id}
-          className="relative group overflow-hidden rounded-xl shadow-lg aspect-video"
+          className="relative group overflow-hidden rounded-xl shadow-lg aspect-video bg-gray-100"
         >
           <video 
             src={item.file_url}
             className="w-full h-full object-cover"
             controls={!isEditing}
             preload="metadata"
+            onError={(e) => {
+              console.error('Video load error:', item.file_url);
+            }}
           />
           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
             {isEditing ? (
               <button
-                onClick={() => onRemoveItem(item.id)}
+                onClick={() => handleRemoveItem(item.id)}
                 className="bg-red-600 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
               >
                 <Trash2 className="w-5 h-5" />
@@ -171,10 +226,32 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
           )}
         </div>
 
+        {/* Storage Status Warning */}
+        {!storageReady && isAdminLoggedIn && (
+          <div className="mb-8 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <AlertCircle className="w-5 h-5 text-yellow-600 mr-3" />
+              <div>
+                <h3 className="text-sm font-medium text-yellow-800">Storage Not Ready</h3>
+                <p className="text-sm text-yellow-700">
+                  Please ensure the 'gallery' bucket exists in your Supabase Storage and has proper policies configured.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Add New Media (Admin Only) */}
         {isAdminLoggedIn && isEditing && (
           <div className="mb-8 bg-blue-50 p-6 rounded-xl">
             <h3 className="text-lg font-semibold mb-4">Add New Media</h3>
+            
+            {/* Upload Progress */}
+            {uploadProgress && (
+              <div className="mb-4 p-3 bg-blue-100 rounded-lg">
+                <p className="text-blue-800 text-sm font-medium">{uploadProgress}</p>
+              </div>
+            )}
             
             {/* File Upload */}
             <div className="mb-4">
@@ -182,7 +259,7 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
                 Upload from Computer
               </label>
               <div className="flex items-center justify-center w-full">
-                <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors ${uploading || !storageReady ? 'opacity-50 cursor-not-allowed' : ''}`}>
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
                     <Upload className="w-8 h-8 mb-4 text-gray-500" />
                     <p className="mb-2 text-sm text-gray-500">
@@ -199,7 +276,7 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
                     className="hidden"
                     accept="image/*,video/*"
                     onChange={handleFileUpload}
-                    disabled={uploading}
+                    disabled={uploading || !storageReady}
                   />
                 </label>
               </div>

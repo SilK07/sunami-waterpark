@@ -1,11 +1,24 @@
 import { useState, useEffect } from 'react';
-import { supabase, ParkSettings, GalleryItem, uploadFile, deleteFile } from '../lib/supabase';
+import { supabase, ParkSettings, GalleryItem, uploadFile, deleteFile, testStorageConnection } from '../lib/supabase';
 
 export const useParkData = () => {
   const [parkSettings, setParkSettings] = useState<ParkSettings | null>(null);
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [storageReady, setStorageReady] = useState(false);
+
+  // Test storage connection on mount
+  useEffect(() => {
+    const checkStorage = async () => {
+      const isReady = await testStorageConnection();
+      setStorageReady(isReady);
+      if (!isReady) {
+        setError('Storage bucket not accessible. Please check your Supabase configuration.');
+      }
+    };
+    checkStorage();
+  }, []);
 
   // Load park settings
   const loadParkSettings = async () => {
@@ -94,8 +107,16 @@ export const useParkData = () => {
   // Add gallery item from file
   const addGalleryFile = async (file: File) => {
     try {
+      if (!storageReady) {
+        throw new Error('Storage is not ready. Please check your Supabase configuration.');
+      }
+
+      console.log('Starting file upload:', { name: file.name, size: file.size, type: file.type });
+      
       const fileType = file.type.startsWith('image/') ? 'image' : 'video';
       const fileUrl = await uploadFile(file);
+      
+      console.log('File uploaded successfully, adding to database:', fileUrl);
       
       const maxOrder = galleryItems.length > 0 
         ? Math.max(...galleryItems.map(item => item.display_order))
@@ -112,18 +133,38 @@ export const useParkData = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database insert error:', error);
+        // Try to clean up uploaded file
+        try {
+          await deleteFile(fileUrl);
+        } catch (cleanupError) {
+          console.warn('Failed to cleanup uploaded file:', cleanupError);
+        }
+        throw error;
+      }
+
+      console.log('Gallery item added successfully:', data);
       setGalleryItems(prev => [...prev, data]);
       return data;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add file');
-      throw err;
+      console.error('Add gallery file error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to add file';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     }
   };
 
   // Add gallery item from URL
   const addGalleryUrl = async (url: string, type: 'image' | 'video') => {
     try {
+      // Validate URL
+      try {
+        new URL(url);
+      } catch {
+        throw new Error('Please enter a valid URL');
+      }
+
       const maxOrder = galleryItems.length > 0 
         ? Math.max(...galleryItems.map(item => item.display_order))
         : 0;
@@ -143,8 +184,9 @@ export const useParkData = () => {
       setGalleryItems(prev => [...prev, data]);
       return data;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add URL');
-      throw err;
+      const errorMessage = err instanceof Error ? err.message : 'Failed to add URL';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     }
   };
 
@@ -154,12 +196,14 @@ export const useParkData = () => {
       const item = galleryItems.find(item => item.id === itemId);
       if (!item) return;
 
-      // Delete from storage if it's an uploaded file
-      if (item.file_url.includes(supabase.supabaseUrl)) {
+      // Delete from storage if it's an uploaded file (contains supabase URL)
+      if (item.file_url.includes('supabase.co/storage')) {
         try {
           await deleteFile(item.file_url);
+          console.log('File deleted from storage');
         } catch (storageError) {
           console.warn('Failed to delete file from storage:', storageError);
+          // Continue with database deletion even if storage deletion fails
         }
       }
 
@@ -170,15 +214,18 @@ export const useParkData = () => {
 
       if (error) throw error;
       setGalleryItems(prev => prev.filter(item => item.id !== itemId));
+      console.log('Gallery item removed successfully');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to remove item');
-      throw err;
+      const errorMessage = err instanceof Error ? err.message : 'Failed to remove item';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     }
   };
 
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
+      setError(null);
       await Promise.all([loadParkSettings(), loadGalleryItems()]);
       setLoading(false);
     };
@@ -191,6 +238,7 @@ export const useParkData = () => {
     galleryItems,
     loading,
     error,
+    storageReady,
     updateParkSettings,
     addGalleryFile,
     addGalleryUrl,

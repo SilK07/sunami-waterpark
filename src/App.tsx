@@ -154,12 +154,14 @@ function App() {
       name: "Rajesh Kumar Singh",
       role: "Co-Founder",
       image: "/rajesh.jpeg",
+      mobile: "7379132241",
       description: "With over 15 years in education industry and social work, Mr. Rajesh envisioned creating the ultimate water park experience for the people of Purvanchal."
     },
     {
       name: "Abhay Kumar Singh",
       role: "Co-Founder",
       image: "/abhay.jpeg",
+      mobile: "6392087855",
       description: "Mr. Abhay brings expertise in facility management and customer experience optimization, with over 17 years of experience in the millitary and business management."
     }
   ];
@@ -530,7 +532,19 @@ function App() {
                     className="w-32 h-32 rounded-full object-cover object-top mb-6"
                   />
                   <h3 className="text-2xl font-bold text-gray-800 mb-2">{founder.name}</h3>
-                  <p className="text-cyan-600 font-semibold mb-4">{founder.role}</p>
+                  <p className="text-cyan-600 font-semibold mb-3">{founder.role}</p>
+                  
+                  {/* Mobile Number */}
+                  <div className="flex items-center space-x-2 mb-4 bg-blue-50 px-4 py-2 rounded-lg">
+                    <Phone className="w-4 h-4 text-blue-600" />
+                    <a 
+                      href={`tel:+91${founder.mobile}`}
+                      className="text-blue-600 font-semibold hover:text-blue-700 transition-colors"
+                    >
+                      +91 {founder.mobile}
+                    </a>
+                  </div>
+                  
                   <p className="text-gray-600 leading-relaxed">{founder.description}</p>
                 </div>
               </div>

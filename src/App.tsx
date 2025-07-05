@@ -12,17 +12,12 @@ function App() {
   const [isEditing, setIsEditing] = useState({ timings: false, prices: false });
   const [adminClickCount, setAdminClickCount] = useState(0);
   
-  // Use the custom hook for database operations
+  // Use the custom hook for database operations (only for park settings now)
   const {
     parkSettings,
-    galleryItems,
     loading,
     error,
-    storageReady,
-    updateParkSettings,
-    addGalleryFile,
-    addGalleryUrl,
-    removeGalleryItem
+    updateParkSettings
   } = useParkData();
 
   // Temporary data for editing
@@ -311,16 +306,8 @@ function App() {
         </div>
       </section>
 
-      {/* Enhanced Gallery Section */}
-      <GallerySection
-        galleryItems={galleryItems}
-        isAdminLoggedIn={isAdminLoggedIn}
-        storageReady={storageReady}
-        onAddFile={addGalleryFile}
-        onAddUrl={addGalleryUrl}
-        onRemoveItem={removeGalleryItem}
-        onImageClick={setSelectedImage}
-      />
+      {/* Simplified Gallery Section */}
+      <GallerySection onImageClick={setSelectedImage} />
 
       {/* Pricing Section */}
       <section id="pricing" className="py-20 bg-gradient-to-br from-blue-50 to-cyan-50">

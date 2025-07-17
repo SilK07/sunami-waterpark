@@ -10,6 +10,7 @@ function App() {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminCredentials, setAdminCredentials] = useState({ username: '', password: '' });
   const [isEditing, setIsEditing] = useState({ timings: false, prices: false });
+  const [isEditingFacilities, setIsEditingFacilities] = useState(false);
   const [adminClickCount, setAdminClickCount] = useState(0);
   
   // Use the custom hook for local storage operations
@@ -30,6 +31,10 @@ function App() {
     prices: {
       weekday: 400,
       weekend: 500
+    },
+    facilities: {
+      lockerRoom: 50,
+      swimmingCostumes: 100
     }
   });
 
@@ -38,7 +43,8 @@ function App() {
     if (parkSettings) {
       setTempData({
         timings: parkSettings.timings,
-        prices: parkSettings.prices
+        prices: parkSettings.prices,
+        facilities: parkSettings.facilities
       });
     }
   }, [parkSettings]);
@@ -77,10 +83,12 @@ function App() {
   const handleAdminLogout = () => {
     setIsAdminLoggedIn(false);
     setIsEditing({ timings: false, prices: false });
+    setIsEditingFacilities(false);
     if (parkSettings) {
       setTempData({
         timings: parkSettings.timings,
-        prices: parkSettings.prices
+        prices: parkSettings.prices,
+        facilities: parkSettings.facilities
       });
     }
     setAdminClickCount(0);
@@ -98,31 +106,45 @@ function App() {
   };
 
   const startEditing = (section: string) => {
-    setIsEditing(prev => ({ ...prev, [section]: true }));
+    if (section === 'facilities') {
+      setIsEditingFacilities(true);
+    } else {
+      setIsEditing(prev => ({ ...prev, [section]: true }));
+    }
     if (parkSettings) {
       setTempData({
         timings: parkSettings.timings,
-        prices: parkSettings.prices
+        prices: parkSettings.prices,
+        facilities: parkSettings.facilities
       });
     }
   };
 
   const cancelEditing = (section: string) => {
-    setIsEditing(prev => ({ ...prev, [section]: false }));
+    if (section === 'facilities') {
+      setIsEditingFacilities(false);
+    } else {
+      setIsEditing(prev => ({ ...prev, [section]: false }));
+    }
     if (parkSettings) {
       setTempData({
         timings: parkSettings.timings,
-        prices: parkSettings.prices
+        prices: parkSettings.prices,
+        facilities: parkSettings.facilities
       });
     }
   };
 
   const saveChanges = async (section: string) => {
     try {
-      if (section === 'timings' || section === 'prices') {
+      if (section === 'timings' || section === 'prices' || section === 'facilities') {
         await updateParkSettings(tempData);
       }
-      setIsEditing(prev => ({ ...prev, [section]: false }));
+      if (section === 'facilities') {
+        setIsEditingFacilities(false);
+      } else {
+        setIsEditing(prev => ({ ...prev, [section]: false }));
+      }
     } catch (error) {
       alert('Failed to save changes. Please try again.');
     }
@@ -132,20 +154,25 @@ function App() {
     {
       icon: <Lock className="w-6 h-6" />,
       name: "Locker Room",
-      price: "₹50",
-      description: "Secure storage for your belongings"
+      price: `₹${parkSettings?.facilities.lockerRoom || 50}`,
+      description: "Secure storage for your belongings",
+      editable: true,
+      key: 'lockerRoom'
     },
     {
       icon: <Shirt className="w-6 h-6" />,
       name: "Swimming Costumes",
-      price: "₹100",
-      description: "Rental swimming costumes available"
+      price: `₹${parkSettings?.facilities.swimmingCostumes || 100}`,
+      description: "Rental swimming costumes available",
+      editable: true,
+      key: 'swimmingCostumes'
     },
     {
       icon: <Coffee className="w-6 h-6" />,
       name: "Food Court",
       price: "Free Access",
-      description: "Variety of food and beverages"
+      description: "Variety of food and beverages",
+      editable: false
     }
   ];
 
@@ -492,9 +519,38 @@ function App() {
       {/* Facilities Section */}
       <section id="facilities" className="py-20">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
+          <div className="text-center mb-16 relative">
             <h2 className="text-4xl font-bold text-gray-800 mb-4">Premium Facilities</h2>
             <p className="text-xl text-gray-600">Everything you need for a perfect day at the water park</p>
+            
+            {/* Admin Edit Button */}
+            {isAdminLoggedIn && (
+              <div className="absolute top-0 right-4">
+                {!isEditingFacilities ? (
+                  <button
+                    onClick={() => startEditing('facilities')}
+                    className="text-blue-600 hover:text-blue-700 p-2 bg-white rounded-lg shadow-md hover:shadow-lg transition-all"
+                  >
+                    <Edit className="w-5 h-5" />
+                  </button>
+                ) : (
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => saveChanges('facilities')}
+                      className="text-green-600 hover:text-green-700 p-2 bg-white rounded-lg shadow-md hover:shadow-lg transition-all"
+                    >
+                      <Save className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => cancelEditing('facilities')}
+                      className="text-gray-600 hover:text-gray-700 p-2 bg-white rounded-lg shadow-md hover:shadow-lg transition-all"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           
           <div className="grid md:grid-cols-3 gap-8">
@@ -505,7 +561,31 @@ function App() {
                     <span className="text-cyan-600">{facility.icon}</span>
                   </div>
                   <h3 className="text-xl font-bold text-gray-800 mb-2">{facility.name}</h3>
-                  <p className="text-2xl font-bold text-cyan-600 mb-2">{facility.price}</p>
+                  
+                  {/* Price Display/Edit */}
+                  {isEditingFacilities && facility.editable ? (
+                    <div className="mb-4">
+                      <div className="flex items-center justify-center space-x-2">
+                        <span className="text-lg font-semibold text-gray-700">₹</span>
+                        <input
+                          type="number"
+                          value={tempData.facilities[facility.key as keyof typeof tempData.facilities]}
+                          onChange={(e) => setTempData(prev => ({
+                            ...prev,
+                            facilities: {
+                              ...prev.facilities,
+                              [facility.key!]: parseInt(e.target.value) || 0
+                            }
+                          }))}
+                          className="w-20 px-2 py-1 text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-lg font-bold text-cyan-600"
+                          min="0"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-2xl font-bold text-cyan-600 mb-2">{facility.price}</p>
+                  )}
+                  
                   <p className="text-gray-600">{facility.description}</p>
                 </div>
               </div>

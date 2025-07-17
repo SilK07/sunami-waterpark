@@ -11,6 +11,10 @@ export interface ParkSettings {
     weekday: number;
     weekend: number;
   };
+  facilities: {
+    lockerRoom: number;
+    swimmingCostumes: number;
+  };
   created_at: string;
   updated_at: string;
 }
@@ -40,6 +44,10 @@ const DEFAULT_PARK_SETTINGS: ParkSettings = {
   prices: {
     weekday: 400,
     weekend: 500
+  },
+  facilities: {
+    lockerRoom: 50,
+    swimmingCostumes: 100
   },
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString()

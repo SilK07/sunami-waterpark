@@ -1,5 +1,6 @@
 import React from 'react';
 import { Image } from 'lucide-react';
+import { useGalleryData } from '../hooks/useGalleryData';
 
 interface GallerySectionProps {
   onImageClick: (url: string) => void;
@@ -8,24 +9,36 @@ interface GallerySectionProps {
 export const GallerySection: React.FC<GallerySectionProps> = ({
   onImageClick
 }) => {
-  // Use custom images from public folder
-  const galleryImages = [
-    {
-      id: '1',
-      url: '/1.jpeg',
-      alt: 'Water Park Experience 1'
-    },
-    {
-      id: '2', 
-      url: '/2.jpeg',
-      alt: 'Water Park Experience 2'
-    },
-    {
-      id: '3',
-      url: '/3.jpeg', 
-      alt: 'Water Park Experience 3'
-    }
-  ];
+  const { galleryItems, loading, error } = useGalleryData();
+
+  if (loading) {
+    return (
+      <section id="gallery" className="py-20">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-800 mb-4">Experience the Fun</h2>
+            <p className="text-xl text-gray-600">Take a glimpse of what awaits you at Sunami Water Park</p>
+          </div>
+          <div className="flex justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section id="gallery" className="py-20">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-800 mb-4">Experience the Fun</h2>
+            <p className="text-xl text-red-600">Error loading gallery: {error}</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section id="gallery" className="py-20">
@@ -42,18 +55,18 @@ export const GallerySection: React.FC<GallerySectionProps> = ({
             <h3 className="text-2xl font-bold text-gray-800">Gallery</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {galleryImages.map((image) => (
+            {galleryItems.filter(item => item.file_type === 'image').map((image) => (
               <div 
                 key={image.id}
                 className="relative group overflow-hidden rounded-xl shadow-lg cursor-pointer aspect-video bg-gray-100 hover:shadow-xl transition-all duration-300"
               >
                 <img 
-                  src={image.url} 
-                  alt={image.alt}
+                  src={image.file_url} 
+                  alt={image.file_name}
                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                  onClick={() => onImageClick(image.url)}
+                  onClick={() => onImageClick(image.file_url)}
                   onError={(e) => {
-                    console.error('Image load error:', image.url);
+                    console.error('Image load error:', image.file_url);
                     e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIxIDEyVjdBMiAyIDAgMCAwIDE5IDVINUEyIDIgMCAwIDAgMyA3VjE3QTIgMiAwIDAgMCA1IDE5SDE5QTIgMiAwIDAgMCAyMSAxN1YxMloiIHN0cm9rZT0iIzk5OTk5OSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPHBhdGggZD0iTTggMTBMMTMgMTVMMTYgMTJMMjEgMTciIHN0cm9rZT0iIzk5OTk5OSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+';
                   }}
                 />

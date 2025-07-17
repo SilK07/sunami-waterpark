@@ -12,7 +12,7 @@ function App() {
   const [isEditing, setIsEditing] = useState({ timings: false, prices: false });
   const [adminClickCount, setAdminClickCount] = useState(0);
   
-  // Use the custom hook for database operations (only for park settings now)
+  // Use the custom hook for local storage operations
   const {
     parkSettings,
     loading,
@@ -186,7 +186,7 @@ function App() {
           </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Connection Error</h2>
           <p className="text-gray-600 mb-4">{error}</p>
-          <p className="text-sm text-gray-500">Please make sure Supabase is connected and try again.</p>
+          <p className="text-sm text-gray-500">Please refresh the page and try again.</p>
         </div>
       </div>
     );
@@ -308,7 +308,7 @@ function App() {
         </div>
       </section>
 
-      {/* Simplified Gallery Section */}
+      {/* Gallery Section */}
       <GallerySection onImageClick={setSelectedImage} />
 
       {/* Pricing Section */}

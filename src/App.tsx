@@ -571,7 +571,8 @@ function App() {
                 allowFullScreen
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
-                className="w-full h-96"
+                className="w-full h-96 rounded-xl"
+                title="Sunami Water Park Location"
               ></iframe>
             </div>
 

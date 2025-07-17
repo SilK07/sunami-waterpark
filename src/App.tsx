@@ -154,7 +154,7 @@ function App() {
     {
       icon: <Lock className="w-6 h-6" />,
       name: "Locker Room",
-      price: `₹${parkSettings?.facilities.lockerRoom || 50}`,
+      price: `₹${parkSettings?.facilities?.lockerRoom || 50}`,
       description: "Secure storage for your belongings",
       editable: true,
       key: 'lockerRoom'
@@ -162,7 +162,7 @@ function App() {
     {
       icon: <Shirt className="w-6 h-6" />,
       name: "Swimming Costumes",
-      price: `₹${parkSettings?.facilities.swimmingCostumes || 100}`,
+      price: `₹${parkSettings?.facilities?.swimmingCostumes || 100}`,
       description: "Rental swimming costumes available",
       editable: true,
       key: 'swimmingCostumes'
@@ -427,8 +427,8 @@ function App() {
               ) : (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                    <span className="font-semibold">{parkSettings?.timings.days}</span>
-                    <span className="text-cyan-600 font-bold">{parkSettings?.timings.openTime} - {parkSettings?.timings.closeTime}</span>
+                    <span className="font-semibold">{parkSettings?.timings?.days}</span>
+                    <span className="text-cyan-600 font-bold">{parkSettings?.timings?.openTime} - {parkSettings?.timings?.closeTime}</span>
                   </div>
                   <p className="text-gray-600 text-center">Open all days of the week!</p>
                 </div>
@@ -502,11 +502,11 @@ function App() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
                     <span className="font-semibold">Monday - Friday</span>
-                    <span className="text-green-600 font-bold text-xl">₹{parkSettings?.prices.weekday}</span>
+                    <span className="text-green-600 font-bold text-xl">₹{parkSettings?.prices?.weekday}</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
                     <span className="font-semibold">Saturday - Sunday</span>
-                    <span className="text-green-600 font-bold text-xl">₹{parkSettings?.prices.weekend}</span>
+                    <span className="text-green-600 font-bold text-xl">₹{parkSettings?.prices?.weekend}</span>
                   </div>
                   <p className="text-gray-600 text-center text-sm">Includes access to all water attractions</p>
                 </div>
@@ -732,8 +732,8 @@ function App() {
             <div>
               <h4 className="text-lg font-semibold mb-4">Hours</h4>
               <p className="text-gray-400">
-                {parkSettings?.timings.days}<br />
-                {parkSettings?.timings.openTime} - {parkSettings?.timings.closeTime}
+                {parkSettings?.timings?.days}<br />
+                {parkSettings?.timings?.openTime} - {parkSettings?.timings?.closeTime}
               </p>
             </div>
           </div>

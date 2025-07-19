@@ -42,9 +42,19 @@ function App() {
   React.useEffect(() => {
     if (parkSettings) {
       setTempData({
-        timings: parkSettings.timings,
-        prices: parkSettings.prices,
-        facilities: parkSettings.facilities
+        timings: parkSettings?.timings ?? {
+          openTime: '10:00 AM',
+          closeTime: '5:00 PM',
+          days: 'Monday - Sunday'
+        },
+        prices: parkSettings?.prices ?? {
+          weekday: 400,
+          weekend: 500
+        },
+        facilities: parkSettings?.facilities ?? {
+          lockerRoom: 50,
+          swimmingCostumes: 100
+        }
       });
     }
   }, [parkSettings]);
@@ -154,7 +164,7 @@ function App() {
     {
       icon: <Lock className="w-6 h-6" />,
       name: "Locker Room",
-      price: `₹${parkSettings?.facilities?.lockerRoom || 50}`,
+      price: `₹${parkSettings?.facilities?.lockerRoom ?? 50}`,
       description: "Secure storage for your belongings",
       editable: true,
       key: 'lockerRoom'
@@ -162,7 +172,7 @@ function App() {
     {
       icon: <Shirt className="w-6 h-6" />,
       name: "Swimming Costumes",
-      price: `₹${parkSettings?.facilities?.swimmingCostumes || 100}`,
+      price: `₹${parkSettings?.facilities?.swimmingCostumes ?? 100}`,
       description: "Rental swimming costumes available",
       editable: true,
       key: 'swimmingCostumes'
@@ -569,11 +579,11 @@ function App() {
                         <span className="text-lg font-semibold text-gray-700">₹</span>
                         <input
                           type="number"
-                          value={tempData.facilities[facility.key as keyof typeof tempData.facilities]}
+                          value={tempData?.facilities?.[facility.key as keyof typeof tempData.facilities] ?? 0}
                           onChange={(e) => setTempData(prev => ({
                             ...prev,
                             facilities: {
-                              ...prev.facilities,
+                              ...prev?.facilities,
                               [facility.key!]: parseInt(e.target.value) || 0
                             }
                           }))}

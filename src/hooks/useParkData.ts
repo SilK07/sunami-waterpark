@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import { ParkSettings, getParkSettings, updateParkSettings as updateParkSettingsDB } from '../lib/supabase';
 
 export const useParkData = () => {
@@ -39,7 +40,7 @@ export const useParkData = () => {
       const updatedSettings = await updateParkSettingsDB(parkSettings.id, updates);
       
       if (updatedSettings) {
-        setParkSettings(updatedSettings);
+        // Don't update state here - let realtime subscription handle it
         return updatedSettings;
       } else {
         throw new Error('Failed to update settings');
@@ -52,6 +53,38 @@ export const useParkData = () => {
 
   useEffect(() => {
     loadParkSettings();
+
+    // Set up realtime subscription
+    const subscription = supabase
+      .channel('park_settings_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'park_settings'
+        },
+        (payload) => {
+          console.log('Realtime update received:', payload);
+          
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            // Update the state with the new data
+            setParkSettings(payload.new as ParkSettings);
+          } else if (payload.eventType === 'DELETE') {
+            // Handle deletion if needed
+            setParkSettings(null);
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status);
+      });
+
+    // Cleanup subscription on unmount
+    return () => {
+      console.log('Cleaning up realtime subscription');
+      supabase.removeChannel(subscription);
+    };
   }, []);
 
   return {

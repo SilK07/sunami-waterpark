@@ -16,10 +16,14 @@ export const useParkData = () => {
       if (settings) {
         setParkSettings(settings);
       } else {
-        setError('No park settings found');
+        // If no settings found, try to create default ones
+        console.log('No park settings found, this might be the first run');
+        setParkSettings(null);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load park settings');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load park settings';
+      console.error('Error loading park settings:', errorMessage);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

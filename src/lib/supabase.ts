@@ -32,9 +32,6 @@ export interface ParkSettings {
 // Database functions
 export const getParkSettings = async (): Promise<ParkSettings | null> => {
   try {
-    // First, try to ensure the table exists by creating it if it doesn't
-    await ensureParkSettingsTable();
-    
     const { data, error } = await supabase
       .from('park_settings')
       .select('*')
@@ -55,19 +52,6 @@ export const getParkSettings = async (): Promise<ParkSettings | null> => {
   } catch (error) {
     console.error('Error in getParkSettings:', error);
     return null;
-  }
-};
-
-// Function to ensure the park_settings table exists
-const ensureParkSettingsTable = async (): Promise<void> => {
-  try {
-    const { error } = await supabase.rpc('create_park_settings_table_if_not_exists');
-    if (error && !error.message.includes('already exists')) {
-      console.error('Error creating table:', error);
-    }
-  } catch (error) {
-    // If RPC doesn't exist, try direct table creation
-    console.log('RPC not available, attempting direct table access');
   }
 };
 

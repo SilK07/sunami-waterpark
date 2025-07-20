@@ -221,9 +221,9 @@ function App() {
           <div className="text-red-600 mb-4">
             <X className="w-16 h-16 mx-auto" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Connection Error</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Database Error</h2>
           <p className="text-gray-600 mb-4">{error}</p>
-          <p className="text-sm text-gray-500">Please refresh the page and try again.</p>
+          <p className="text-sm text-gray-500">Please check your Supabase connection and try again.</p>
         </div>
       </div>
     );
@@ -579,11 +579,11 @@ function App() {
                         <span className="text-lg font-semibold text-gray-700">₹</span>
                         <input
                           type="number"
-                          value={tempData?.facilities?.[facility.key as keyof typeof tempData.facilities] ?? 0}
+                          value={tempData?.facilities?.[facility.key as keyof typeof tempData.facilities] || 0}
                           onChange={(e) => setTempData(prev => ({
                             ...prev,
                             facilities: {
-                              ...prev?.facilities,
+                              ...prev.facilities,
                               [facility.key!]: parseInt(e.target.value) || 0
                             }
                           }))}

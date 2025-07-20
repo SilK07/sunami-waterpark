@@ -1,26 +1,23 @@
 import { useState, useEffect } from 'react';
-import { 
-  ParkSettings, 
-  getParkSettings, 
-  updateParkSettings as updateParkSettingsStorage 
-} from '../lib/localStorage';
+import { ParkSettings, getParkSettings, updateParkSettings as updateParkSettingsDB } from '../lib/supabase';
 
 export const useParkData = () => {
   const [parkSettings, setParkSettings] = useState<ParkSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load park settings from localStorage
+  // Load park settings from Supabase
   const loadParkSettings = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // Simulate async operation for consistency
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      const settings = getParkSettings();
-      setParkSettings(settings);
+      const settings = await getParkSettings();
+      if (settings) {
+        setParkSettings(settings);
+      } else {
+        setError('No park settings found');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load park settings');
     } finally {
@@ -29,17 +26,20 @@ export const useParkData = () => {
   };
 
   // Update park settings
-  const updateParkSettings = async (settings: Partial<ParkSettings>) => {
+  const updateParkSettings = async (updates: Partial<Pick<ParkSettings, 'timings' | 'prices' | 'facilities'>>) => {
     try {
-      if (!parkSettings) return;
+      if (!parkSettings) {
+        throw new Error('No park settings loaded');
+      }
 
-      const updatedSettings = updateParkSettingsStorage({
-        ...parkSettings,
-        ...settings
-      });
+      const updatedSettings = await updateParkSettingsDB(parkSettings.id, updates);
       
-      setParkSettings(updatedSettings);
-      return updatedSettings;
+      if (updatedSettings) {
+        setParkSettings(updatedSettings);
+        return updatedSettings;
+      } else {
+        throw new Error('Failed to update settings');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update settings');
       throw err;
